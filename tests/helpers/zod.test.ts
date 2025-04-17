@@ -278,4 +278,42 @@ describe('zodResponseFormat', () => {
       }
     `);
   });
+
+  it('warns on optional fields', () => {
+    const consoleSpy = jest.spyOn(console, 'warn');
+    consoleSpy.mockClear();
+
+    zodResponseFormat(
+      z.object({
+        required: z.string(),
+        optional: z.string().optional(),
+        optional_and_nullable: z.string().optional().nullable(),
+      }),
+      'schema',
+    );
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Zod field at `#/definitions/schema/properties/optional` uses `.optional()` without `.nullable()` which is not supported by the API. See: https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#all-fields-must-be-required',
+    );
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns on nested optional fields', () => {
+    const consoleSpy = jest.spyOn(console, 'warn');
+    consoleSpy.mockClear();
+
+    zodResponseFormat(
+      z.object({
+        foo: z.object({ bar: z.array(z.object({ can_be_missing: z.boolean().optional() })) }),
+      }),
+      'schema',
+    );
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Zod field at `#/definitions/schema/properties/foo/properties/bar/items/properties/can_be_missing` uses `.optional()`',
+      ),
+    );
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
+  });
 });
